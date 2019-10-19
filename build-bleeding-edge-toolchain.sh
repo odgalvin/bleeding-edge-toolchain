@@ -10,8 +10,7 @@
 # distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 #
 
-set -e
-set -u
+set -eu
 
 binutilsVersion="2.32"
 expatVersion="2.2.7"
@@ -64,6 +63,7 @@ pythonArchiveWin64="$pythonWin64.msi"
 zlib="zlib-$zlibVersion"
 zlibArchive="$zlib.tar.gz"
 
+gnumirror="https://ftpmirror.gnu.org"
 pkgversion="bleeding-edge-toolchain"
 target="arm-none-eabi"
 package="$target-$gcc-$(date +'%y%m%d')"
@@ -71,10 +71,11 @@ packageArchiveNative="$package.tar.xz"
 packageArchiveWin32="$package-win32.7z"
 packageArchiveWin64="$package-win64.7z"
 
+uname="$(uname)"
 bold="$(tput bold)"
 normal="$(tput sgr0)"
 
-if [ "$(uname)" = "Darwin" ]; then
+if [ "$uname" = "Darwin" ]; then
 	nproc="$(sysctl -n hw.ncpu)"
 	hostSystem="$(uname -sm)"
 else
@@ -141,50 +142,55 @@ deleteDir() {
 	[ -d "${0:?}" ] && rm -rf "${0:?}"
 }
 
-buildZlib() {
-	(
+msgA() {
+	echo "$bold********** $1$normal"
+}
+
+msgB() {
+	echo "$bold----------  $1$normal"
+}
+
+buildZlib() (
 	buildFolder="${1}"
 	bannerPrefix="${2}"
 	makeOptions="${3}"
 	makeInstallOptions="${4}"
 	tagFileBase="$top/$buildFolder/zlib"
-	echo "$bold********** $bannerPrefix$zlib$normal"
+	msgA "$bannerPrefix$zlib"
 	if [ ! -f "${tagFileBase}_built" ]; then
 		deleteDir "$buildFolder/$zlib"
 		cp -R "$sources/$zlib" "$buildFolder"
 		cd "$buildFolder/$zlib"
 		export CPPFLAGS="${BASE_CPPFLAGS-} ${CPPFLAGS-}"
 		export LDFLAGS="${BASE_LDFLAGS-} ${LDFLAGS-}"
-		echo "$bold---------- $bannerPrefix$zlib configure$normal"
+		msgB "$bannerPrefix$zlib configure"
 		./configure --static --prefix="$top/$buildFolder/$prerequisites/$zlib"
-		echo "$bold---------- $bannerPrefix$zlib make$normal"
+		msgB "$bannerPrefix$zlib make"
 		eval "make $makeOptions -j$nproc"
-		echo "$bold---------- $bannerPrefix$zlib make install$normal"
+		msgB "$bannerPrefix$zlib make install"
 		eval "make $makeInstallOptions install"
 		touch "${tagFileBase}_built"
 		cd "$top"
 		if [ "$keepBuildFolders" = "n" ]; then
-			echo "$bold---------- $bannerPrefix$zlib remove build folder$normal"
+			msgB "$bannerPrefix$zlib remove build folder"
 			deleteDir "$buildFolder/$zlib"
 		fi
 	fi
-	)
-}
+)
 
-buildGmp() {
-	(
+buildGmp() (
 	buildFolder="${1}"
 	bannerPrefix="${2}"
 	configureOptions="${3}"
 	tagFileBase="$top/$buildFolder/gmp"
-	echo "$bold********** $bannerPrefix$gmp$normal"
+	msgA "$bannerPrefix$gmp"
 	if [ ! -f "${tagFileBase}_built" ]; then
 		deleteDir "$buildFolder/$gmp"
 		mkdir -p "$buildFolder/$gmp"
 		cd "$buildFolder/$gmp"
 		export CPPFLAGS="${BASE_CPPFLAGS-} ${CPPFLAGS-}"
 		export LDFLAGS="${BASE_LDFLAGS-} ${LDFLAGS-}"
-		echo "$bold---------- $bannerPrefix$gmp configure$normal"
+		msgB "$bannerPrefix$gmp configure"
 		eval "$top/$sources/$gmp/configure \
 			$quietConfigureOptions \
 			$configureOptions \
@@ -192,34 +198,32 @@ buildGmp() {
 			--enable-cxx \
 			--disable-shared \
 			--disable-nls"
-		echo "$bold---------- $bannerPrefix$gmp make$normal"
+		msgB "$bannerPrefix$gmp make"
 		make -j"$nproc"
-		echo "$bold---------- $bannerPrefix$gmp make install$normal"
+		msgB "$bannerPrefix$gmp make install"
 		make install
 		touch "${tagFileBase}_built"
 		cd "$top"
 		if [ "$keepBuildFolders" = "n" ]; then
-			echo "$bold---------- $bannerPrefix$gmp remove build folder$normal"
+			msgB "$bannerPrefix$gmp remove build folder"
 			deleteDir "$buildFolder/$gmp"
 		fi
 	fi
-	)
-}
+)
 
-buildMpfr() {
-	(
+buildMpfr() (
 	buildFolder="${1}"
 	bannerPrefix="${2}"
 	configureOptions="${3}"
 	tagFileBase="$top/$buildFolder/mpfr"
-	echo "$bold********** $bannerPrefix$mpfr$normal"
+	msgA "$bannerPrefix$mpfr"
 	if [ ! -f "${tagFileBase}_built" ]; then
 		deleteDir "$buildFolder/$mpfr"
 		mkdir -p "$buildFolder/$mpfr"
 		cd "$buildFolder/$mpfr"
 		export CPPFLAGS="${BASE_CPPFLAGS-} ${CPPFLAGS-}"
 		export LDFLAGS="${BASE_LDFLAGS-} ${LDFLAGS-}"
-		echo "$bold---------- $bannerPrefix$mpfr configure$normal"
+		msgB "$bannerPrefix$mpfr configure"
 		eval "$top/$sources/$mpfr/configure \
 			$quietConfigureOptions \
 			$configureOptions \
@@ -227,34 +231,33 @@ buildMpfr() {
 			--disable-shared \
 			--disable-nls \
 			--with-gmp=$top/$buildFolder/$prerequisites/$gmp"
-		echo "$bold---------- $bannerPrefix$mpfr make$normal"
+		msgB "$bannerPrefix$mpfr make"
 		make -j"$nproc"
-		echo "$bold---------- $bannerPrefix$mpfr make install$normal"
+		msgB "$bannerPrefix$mpfr make install"
 		make install
 		touch "${tagFileBase}_built"
 		cd "$top"
 		if [ "$keepBuildFolders" = "n" ]; then
-			echo "$bold---------- $bannerPrefix$mpfr remove build folder$normal"
+			msgB "$bannerPrefix$mpfr remove build folder"
 			deleteDir "$buildFolder/$mpfr"
 		fi
 	fi
-	)
-}
+)
 
-buildMpc() {
-	(
+
+buildMpc() (
 	buildFolder="${1}"
 	bannerPrefix="${2}"
 	configureOptions="${3}"
 	tagFileBase="$top/$buildFolder/mpc"
-	echo "$bold********** $bannerPrefix$mpc$normal"
+	msgA "$bannerPrefix$mpc"
 	if [ ! -f "${tagFileBase}_built" ]; then
 		deleteDir "$buildFolder/$mpc"
 		mkdir -p "$buildFolder/$mpc"
 		cd "$buildFolder/$mpc"
 		export CPPFLAGS="${BASE_CPPFLAGS-} ${CPPFLAGS-}"
 		export LDFLAGS="${BASE_LDFLAGS-} ${LDFLAGS-}"
-		echo "$bold---------- $bannerPrefix$mpc configure$normal"
+		msgB "$bannerPrefix$mpc configure"
 		eval "$top/$sources/$mpc/configure \
 			$quietConfigureOptions \
 			$configureOptions \
@@ -263,34 +266,33 @@ buildMpc() {
 			--disable-nls \
 			--with-gmp=$top/$buildFolder/$prerequisites/$gmp \
 			--with-mpfr=$top/$buildFolder/$prerequisites/$mpfr"
-		echo "$bold---------- $bannerPrefix$mpc make$normal"
+		msgB "$bannerPrefix$mpc make"
 		make -j"$nproc"
-		echo "$bold---------- $bannerPrefix$mpc make install$normal"
+		msgB "$bannerPrefix$mpc make install"
 		make install
 		touch "${tagFileBase}_built"
 		cd "$top"
 		if [ "$keepBuildFolders" = "n" ]; then
-			echo "$bold---------- $bannerPrefix$mpc remove build folder$normal"
+			msgB "$bannerPrefix$mpc remove build folder"
 			deleteDir "$buildFolder/$mpc"
 		fi
 	fi
-	)
-}
+)
 
-buildIsl() {
-	(
+
+buildIsl() (
 	buildFolder="${1}"
 	bannerPrefix="${2}"
 	configureOptions="${3}"
 	tagFileBase="$top/$buildFolder/isl"
-	echo "$bold********** $bannerPrefix$isl$normal"
+	msgA "$bannerPrefix$isl"
 	if [ ! -f "${tagFileBase}_built" ]; then
 		deleteDir "$buildFolder/$isl"
 		mkdir -p "$buildFolder/$isl"
 		cd "$buildFolder/$isl"
 		export CPPFLAGS="${BASE_CPPFLAGS-} ${CPPFLAGS-}"
 		export LDFLAGS="${BASE_LDFLAGS-} ${LDFLAGS-}"
-		echo "$bold---------- $bannerPrefix$isl configure$normal"
+		msgB "$bannerPrefix$isl configure"
 		eval "$top/$sources/$isl/configure \
 			$quietConfigureOptions \
 			$configureOptions \
@@ -298,70 +300,66 @@ buildIsl() {
 			--disable-shared \
 			--disable-nls \
 			--with-gmp-prefix=$top/$buildFolder/$prerequisites/$gmp"
-		echo "$bold---------- $bannerPrefix$isl make$normal"
+		msgB "$bannerPrefix$isl make"
 		make -j"$nproc"
-		echo "$bold---------- $bannerPrefix$isl make install$normal"
+		msgB "$bannerPrefix$isl make install"
 		make install
 		touch "${tagFileBase}_built"
 		cd "$top"
 		if [ "$keepBuildFolders" = "n" ]; then
-			echo "$bold---------- $bannerPrefix$isl remove build folder$normal"
+			msgB "$bannerPrefix$isl remove build folder"
 			deleteDir "$buildFolder/$isl"
 		fi
 	fi
-	)
-}
+)
 
-buildExpat() {
-	(
+buildExpat() (
 	buildFolder="${1}"
 	bannerPrefix="${2}"
 	configureOptions="${3}"
 	tagFileBase="$top/$buildFolder/expat"
-	echo "$bold********** $bannerPrefix$expat$normal"
+	msgA "$bannerPrefix$expat"
 	if [ ! -f "${tagFileBase}_built" ]; then
 		deleteDir "$buildFolder/$expat"
 		mkdir -p "$buildFolder/$expat"
 		cd "$buildFolder/$expat"
 		export CPPFLAGS="${BASE_CPPFLAGS-} ${CPPFLAGS-}"
 		export LDFLAGS="${BASE_LDFLAGS-} ${LDFLAGS-}"
-		echo "$bold---------- $bannerPrefix$expat configure$normal"
+		msgB "$bannerPrefix$expat configure"
 		eval "$top/$sources/$expat/configure \
 			$quietConfigureOptions \
 			$configureOptions \
 			--prefix=$top/$buildFolder/$prerequisites/$expat \
 			--disable-shared \
 			--disable-nls"
-		echo "$bold---------- $bannerPrefix$expat make$normal"
+		msgB "$bannerPrefix$expat make"
 		make -j"$nproc"
-		echo "$bold---------- $bannerPrefix$expat make install$normal"
+		msgB "$bannerPrefix$expat make install"
 		make install
 		touch "${tagFileBase}_built"
 		cd "$top"
 		if [ "$keepBuildFolders" = "n" ]; then
-			echo "$bold---------- $bannerPrefix$expat remove build folder$normal"
+			msgB "$bannerPrefix$expat remove build folder"
 			deleteDir "$buildFolder/$expat"
 		fi
 	fi
-	)
-}
+)
 
-buildBinutils() {
-	(
+buildBinutils() (
 	buildFolder="${1}"
 	installFolder="${2}"
 	bannerPrefix="${3}"
 	configureOptions="${4}"
 	documentations="${5}"
 	tagFileBase="$top/$buildFolder/binutils"
-	echo "$bold********** $bannerPrefix$binutils$normal"
+	msgA "$bannerPrefix$binutils"
 	if [ ! -f "${tagFileBase}_built" ]; then
 		deleteDir "$buildFolder/$binutils"
 		mkdir -p "$buildFolder/$binutils"
 		cd "$buildFolder/$binutils"
 		export CPPFLAGS="-I$top/$buildFolder/$prerequisites/$zlib/include ${BASE_CPPFLAGS-} ${CPPFLAGS-}"
 		export LDFLAGS="-L$top/$buildFolder/$prerequisites/$zlib/lib ${BASE_LDFLAGS-} ${LDFLAGS-}"
-		echo "$bold---------- $bannerPrefix$binutils configure$normal"
+		msgB "$bannerPrefix$binutils configure"
 		eval "$top/$sources/$binutils/configure \
 			$quietConfigureOptions \
 			$configureOptions \
@@ -374,39 +372,37 @@ buildBinutils() {
 			--enable-plugins \
 			--with-system-zlib \
 			\"--with-pkgversion=$pkgversion\""
-		echo "$bold---------- $bannerPrefix$binutils make$normal"
+		msgB "$bannerPrefix$binutils make"
 		make -j"$nproc"
-		echo "$bold---------- $bannerPrefix$binutils make install$normal"
+		msgB "$bannerPrefix$binutils make install"
 		make install
 		for documentation in $documentations; do
-			echo "$bold---------- $bannerPrefix$binutils make install-$documentation$normal"
+			msgB "$bannerPrefix$binutils make install-$documentation"
 			make install-"$documentation"
 		done
 		touch "${tagFileBase}_built"
 		cd "$top"
 		if [ "$keepBuildFolders" = "n" ]; then
-			echo "$bold---------- $bannerPrefix$binutils remove build folder$normal"
+			msgB "$bannerPrefix$binutils remove build folder"
 			deleteDir "$buildFolder/$binutils"
 		fi
 	fi
-	)
-}
+)
 
-buildGcc() {
-	(
+buildGcc() (
 	buildFolder="${1}"
 	installFolder="${2}"
 	bannerPrefix="${3}"
 	configureOptions="${4}"
 	tagFileBase="$top/$buildFolder/gcc"
-	echo "$bold********** $bannerPrefix$gcc$normal"
+	msgA "$bannerPrefix$gcc"
 	if [ ! -f "${tagFileBase}_built" ]; then
 		deleteDir "$buildFolder/$gcc"
 		mkdir -p "$buildFolder/$gcc"
 		cd "$buildFolder/$gcc"
 		export CPPFLAGS="-I$top/$buildFolder/$prerequisites/$zlib/include ${BASE_CPPFLAGS-} ${CPPFLAGS-}"
 		export LDFLAGS="-L$top/$buildFolder/$prerequisites/$zlib/lib ${BASE_LDFLAGS-} ${LDFLAGS-}"
-		echo "$bold---------- $bannerPrefix$gcc configure$normal"
+		msgB "$bannerPrefix$gcc configure"
 		eval "$top/$sources/$gcc/configure \
 			$quietConfigureOptions \
 			$configureOptions \
@@ -435,28 +431,26 @@ buildGcc() {
 			--with-isl=$top/$buildFolder/$prerequisites/$isl \
 			\"--with-pkgversion=$pkgversion\" \
 			--with-multilib-list=rmprofile"
-		echo "$bold---------- $bannerPrefix$gcc make all-gcc$normal"
+		msgB "$bannerPrefix$gcc make all-gcc"
 		make -j"$nproc" all-gcc
-		echo "$bold---------- $bannerPrefix$gcc make install-gcc$normal"
+		msgB "$bannerPrefix$gcc make install-gcc"
 		make install-gcc
 		touch "${tagFileBase}_built"
 		cd "$top"
 		if [ "$keepBuildFolders" = "n" ]; then
-			echo "$bold---------- $bannerPrefix$gcc remove build folder$normal"
+			msgB "$bannerPrefix$gcc remove build folder"
 			deleteDir "$buildFolder/$gcc"
 		fi
 	fi
-	)
-}
+)
 
-buildNewlib() {
-	(
+buildNewlib() (
 	suffix="${1}"
 	optimization="${2}"
 	configureOptions="${3}"
 	documentations="${4}"
 	tagFileBase="$top/$buildNative/newlib$suffix"
-	echo "$bold********** $newlib$suffix$normal"
+	msgA "$newlib$suffix"
 	if [ ! -f "${tagFileBase}_built" ]; then
 		deleteDir "$buildNative/$newlib$suffix"
 		mkdir -p "$buildNative/$newlib$suffix"
@@ -465,7 +459,7 @@ buildNewlib() {
 		export LDFLAGS="${BASE_LDFLAGS-} ${LDFLAGS-}"
 		export PATH="$top/$installNative/bin:${PATH-}"
 		export CFLAGS_FOR_TARGET="-g $optimization ${BASE_CFLAGS_FOR_TARGET-} ${CFLAGS_FOR_TARGET-}"
-		echo "$bold---------- $newlib$suffix configure$normal"
+		msgB "$newlib$suffix configure"
 		eval "$top/$sources/$newlib/configure \
 			$quietConfigureOptions \
 			$configureOptions \
@@ -480,38 +474,36 @@ buildNewlib() {
 			--enable-newlib-retargetable-locking \
 			--enable-newlib-global-stdio-streams \
 			--disable-nls"
-		echo "$bold---------- $newlib$suffix make$normal"
+		msgB "$newlib$suffix make"
 		make -j"$nproc"
-		echo "$bold---------- $newlib$suffix make install$normal"
+		msgB "$newlib$suffix make install"
 		make install
 		for documentation in $documentations; do
 			cd "$target"/newlib/libc
-			echo "$bold---------- $newlib$suffix libc make install-$documentation$normal"
+			msgB "$newlib$suffix libc make install-$documentation"
 			make install-"$documentation"
 			cd ../../..
 			cd "$target"/newlib/libm
-			echo "$bold---------- $newlib$suffix libm make install-$documentation$normal"
+			msgB "$newlib$suffix libm make install-$documentation"
 			make install-"$documentation"
 			cd ../../..
 		done
 		touch "${tagFileBase}_built"
 		cd "$top"
 		if [ "$keepBuildFolders" = "n" ]; then
-			echo "$bold---------- $newlib$suffix remove build folder$normal"
+			msgB "$newlib$suffix remove build folder"
 			deleteDir "$buildNative/$newlib$suffix"
 		fi
 	fi
-	)
-}
+)
 
-buildGccFinal() {
-	(
+buildGccFinal() (
 	suffix="${1}"
 	optimization="${2}"
 	installFolder="${3}"
 	documentations="${4}"
 	tagFileBase="$top/$buildNative/gcc$suffix"
-	echo "$bold********** $gcc$suffix$normal"
+	msgA "$gcc$suffix"
 	if [ ! -f "${tagFileBase}_built" ]; then
 		deleteDir "$buildNative/$gcc$suffix"
 		mkdir -p "$buildNative/$gcc$suffix"
@@ -520,7 +512,7 @@ buildGccFinal() {
 		export LDFLAGS="-L$top/$buildNative/$prerequisites/$zlib/lib ${BASE_LDFLAGS-} ${LDFLAGS-}"
 		export CFLAGS_FOR_TARGET="-g $optimization ${BASE_CFLAGS_FOR_TARGET-} ${CFLAGS_FOR_TARGET-}"
 		export CXXFLAGS_FOR_TARGET="-g $optimization ${BASE_CXXFLAGS_FOR_TARGET-} ${CXXFLAGS_FOR_TARGET-}"
-		echo "$bold---------- $gcc$suffix configure$normal"
+		msgB "$gcc$suffix configure"
 		"$top/$sources/$gcc"/configure \
 			"$quietConfigureOptions" \
 			--target="$target" \
@@ -553,29 +545,27 @@ buildGccFinal() {
 			--with-isl="$top/$buildNative/$prerequisites/$isl" \
 			"--with-pkgversion=$pkgversion" \
 			--with-multilib-list=rmprofile
-		echo "$bold---------- $gcc$suffix make$normal"
+		msgB "$gcc$suffix make"
 		make -j"$nproc" INHIBIT_LIBC_CFLAGS="-DUSE_TM_CLONE_REGISTRY=0"
-		echo "$bold---------- $gcc$suffix make install$normal"
+		msgB "$gcc$suffix make install"
 		make install
 		for documentation in $documentations; do
-			echo "$bold---------- $gcc$suffix make install-$documentation$normal"
+			msgB "$gcc$suffix make install-$documentation"
 			make install-"$documentation"
 		done
 		touch "${tagFileBase}_built"
 		cd "$top"
 		if [ "$keepBuildFolders" = "n" ]; then
-			echo "$bold---------- $gcc$suffix remove build folder$normal"
+			msgB "$gcc$suffix remove build folder"
 			deleteDir "$buildNative/$gcc$suffix"
 		fi
 	fi
-	)
-}
+)
 
-copyNanoLibraries() {
-	(
+copyNanoLibraries() (
 	source="${1}"
 	destination="${2}"
-	echo "$bold********** \"nano\" libraries copy$normal"
+	msgA "\"nano\" libraries copy"
 	multilibs="$("$destination/bin/$target"-gcc -print-multi-lib)"
 	sourcePrefix="$source/$target/lib"
 	destinationPrefix="$destination/$target/lib"
@@ -591,18 +581,16 @@ copyNanoLibraries() {
 		cp "$sourceDirectory/libsupc++.a" "$destinationDirectory/libsupc++_nano.a"
 	done
 
-	mkdir -p "$destination/arm-none-eabi/include/newlib-nano"
-	cp "$source/arm-none-eabi/include/newlib.h" "$destination/arm-none-eabi/include/newlib-nano"
+	mkdir -p "$destination/$target/include/newlib-nano"
+	cp "$source/$target/include/newlib.h" "$destination/$target/include/newlib-nano"
 
 	if [ "$keepBuildFolders" = "n" ]; then
-		echo "$bold---------- \"nano\" libraries remove install folder$normal"
+		msgB "\"nano\" libraries remove install folder"
 		deleteDir "$top/$buildNative/$nanoLibraries"
 	fi
-	)
-}
+)
 
-buildGdb() {
-	(
+buildGdb() (
 	buildFolder="${1}"
 	installFolder="${2}"
 	bannerPrefix="${3}"
@@ -614,14 +602,14 @@ buildGdb() {
 			tagFileBase="$top/$buildFolder/gdb"
 			;;
 	esac
-	echo "$bold********** $bannerPrefix$gdb$normal"
+	msgA "$bannerPrefix$gdb"
 	if [ ! -f "${tagFileBase}_built" ]; then
 		deleteDir "$buildFolder/$gdb"
 		mkdir -p "$buildFolder/$gdb"
 		cd "$buildFolder/$gdb"
 		export CPPFLAGS="-I$top/$buildFolder/$prerequisites/$zlib/include ${BASE_CPPFLAGS-} ${CPPFLAGS-}"
 		export LDFLAGS="-L$top/$buildFolder/$prerequisites/$zlib/lib ${BASE_LDFLAGS-} ${LDFLAGS-}"
-		echo "$bold---------- $bannerPrefix$gdb configure$normal"
+		msgB "$bannerPrefix$gdb configure"
 		eval "$top/$sources/$gdb/configure \
 			$quietConfigureOptions \
 			$configureOptions \
@@ -640,36 +628,34 @@ buildGdb() {
 			--with-libmpfr-prefix=$top/$buildFolder/$prerequisites/$mpfr \
 			\"--with-gdb-datadir='\\\${prefix}'/$target/share/gdb\" \
 			\"--with-pkgversion=$pkgversion\""
-		echo "$bold---------- $bannerPrefix$gdb make$normal"
+		msgB "$bannerPrefix$gdb make"
 		make -j"$nproc"
-		echo "$bold---------- $bannerPrefix$gdb make install$normal"
+		msgB "$bannerPrefix$gdb make install"
 		make install
 		for documentation in $documentations; do
-			echo "$bold---------- $bannerPrefix$gdb make install-$documentation$normal"
+			msgB "$bannerPrefix$gdb make install-$documentation"
 			make install-"$documentation"
 		done
 		touch "${tagFileBase}_built"
 		cd "$top"
 		if [ "$keepBuildFolders" = "n" ]; then
-			echo "$bold---------- $bannerPrefix$gdb remove build folder$normal"
+			msgB "$bannerPrefix$gdb remove build folder"
 			deleteDir "$buildFolder/$gdb"
 		fi
 	fi
-	)
-}
+)
 
-postCleanup() {
-	(
+postCleanup() (
 	installFolder="${1}"
 	bannerPrefix="${2}"
 	hostSystem="${3}"
 	extraComponents="${4}"
-	if [ "$(uname)" = "Darwin" ]; then
+	if [ "$uname" = "Darwin" ]; then
 		buildSystem="$(uname -srvm)"
 	else
 		buildSystem="$(uname -srvmo)"
 	fi
-	echo "$bold********** ${bannerPrefix}Post-cleanup$normal"
+	msgA "${bannerPrefix}Post-cleanup"
 	deleteDir "$installFolder"/include
 	find "$installFolder" -name '*.la' -exec rm -rf {} +
 	cat > "$installFolder"/info.txt <<- EOF
@@ -691,13 +677,12 @@ postCleanup() {
 	http://www.freddiechopin.info/
 	EOF
 	cp "${0}" "$installFolder"
-	)
-}
+)
 
 if [ "$resume" = "y" ]; then
-	echo "$bold********** Resuming last build$normal"
+	msgA "Resuming last build"
 else
-	echo "$bold********** Cleanup$normal"
+	msgA "Cleanup"
 	deleteDir "$buildNative"
 	deleteDir "$installNative"
 	mkdir -p "$buildNative"
@@ -732,13 +717,13 @@ else
 	find "$sources" -mindepth 1 -maxdepth 1 -type d -exec rm -rf {} +
 fi
 
-echo "$bold********** Download$normal"
+msgA "Download"
 mkdir -p "$sources"
 cd "$sources"
 download() {
 	ret=0
 	if [ ! -f "${1}_downloaded" ]; then
-		echo "$bold---------- Downloading ${1}$normal"
+		msgB "Downloading ${1}"
 		curl -L -o "${1}" -C - --connect-timeout 30 -Y 1024 -y 30 "${2}" || ret=$?
 		if [ "$ret" -eq 33 ]; then
 			echo 'This happens if the file is complete, continuing...'
@@ -748,21 +733,21 @@ download() {
 		touch "${1}_downloaded"
 	fi
 }
-download "$binutilsArchive" https://ftp.gnu.org/gnu/binutils/"$binutilsArchive"
+download "$binutilsArchive" "$gnumirror/binutils/$binutilsArchive"
 download "$expatArchive" https://github.com/libexpat/libexpat/releases/download/"$(echo "R_$expatVersion" | sed 's/\./_/g')/$expatArchive"
 if [ "${gccVersion#*-}" = "$gccVersion" ]; then
-	download "$gccArchive" https://ftp.gnu.org/gnu/gcc/"$gcc/$gccArchive"
+	download "$gccArchive" "$gnumirror/gcc/$gcc/$gccArchive"
 else
 	download "$gccArchive" https://gcc.gnu.org/pub/gcc/snapshots/"$gccVersion/$gccArchive"
 fi
-download "$gdbArchive" https://ftp.gnu.org/gnu/gdb/"$gdbArchive"
-download "$gmpArchive" https://ftp.gnu.org/gnu/gmp/"$gmpArchive"
+download "$gdbArchive" "$gnumirror/gdb/$gdbArchive"
+download "$gmpArchive" "$gnumirror/gmp/$gmpArchive"
 download "$islArchive" http://isl.gforge.inria.fr/"$islArchive"
 if [ "$enableWin32" = "y" ] || [ "$enableWin64" = "y" ]; then
 	download "$libiconvArchive" https://ftp.gnu.org/pub/gnu/libiconv/"$libiconvArchive"
 fi
-download "$mpcArchive" https://ftp.gnu.org/gnu/mpc/"$mpcArchive"
-download "$mpfrArchive" https://ftp.gnu.org/gnu/mpfr/"$mpfrArchive"
+download "$mpcArchive" "$gnumirror/mpc/$mpcArchive"
+download "$mpfrArchive" "$gnumirror/mpfr/$mpfrArchive"
 download "$newlibArchive" https://sourceware.org/pub/newlib/"$newlibArchive"
 if [ "$enableWin32" = "y" ]; then
 	download "$pythonArchiveWin32" https://www.python.org/ftp/python/"$pythonVersion/$pythonArchiveWin32"
@@ -773,11 +758,11 @@ fi
 download "$zlibArchive" https://www.zlib.net/fossils/"$zlibArchive"
 cd "$top"
 
-echo "$bold********** Extract$normal"
+msgA "Extract"
 cd "$sources"
 extract() {
 	if [ ! -f "${1}_extracted" ]; then
-		echo "$bold---------- Extracting ${1}$normal"
+		msgB "Extracting ${1}"
 		tar -xf "${1}"
 		touch "${1}_extracted"
 	fi
@@ -795,12 +780,12 @@ extract "$mpcArchive"
 extract "$mpfrArchive"
 extract "$newlibArchive"
 if [ ! -f "${pythonArchiveWin32}_extracted" ] && [ "$enableWin32" = "y" ]; then
-	echo "$bold---------- Extracting $pythonArchiveWin32$normal"
+	msgB "Extracting $pythonArchiveWin32"
 	7za x "$pythonArchiveWin32" -o"$pythonWin32"
 	touch "${pythonArchiveWin32}_extracted"
 fi
 if [ ! -f "${pythonArchiveWin64}_extracted" ] && [ "$enableWin64" = "y" ]; then
-	echo "$bold---------- Extracting $pythonArchiveWin64$normal"
+	msgB "Extracting $pythonArchiveWin64"
 	7za x "$pythonArchiveWin64" -o"$pythonWin64"
 	touch "${pythonArchiveWin64}_extracted"
 fi
@@ -867,7 +852,7 @@ buildGdb \
 
 find "$installNative" -type f -exec chmod a+w {} +
 postCleanup "$installNative" "" "$hostSystem" ""
-if [ "$(uname)" = "Darwin" ]; then
+if [ "$uname" = "Darwin" ]; then
 	find "$installNative" -type f -perm +111 -exec strip -ur {} \; || true
 else
 	find "$installNative" -type f -executable -exec strip {} \; || true
@@ -877,11 +862,11 @@ if [ "$buildDocumentation" = "y" ]; then
 	find "$installNative"/share/doc -mindepth 2 -name '*.pdf' -exec mv {} "$installNative"/share/doc \;
 fi
 
-echo "$bold********** Package$normal"
+msgA "Package"
 rm -rf "$package"
 ln -s "$installNative" "$package"
 rm -rf "$packageArchiveNative"
-if [ "$(uname)" = "Darwin" ]; then
+if [ "$uname" = "Darwin" ]; then
 	XZ_OPT=${XZ_OPT-"-9e -v"} tar -cJf "$packageArchiveNative" "$(find "$package"/ -mindepth 1 -maxdepth 1)"
 else
 	XZ_OPT=${XZ_OPT-"-9e -v"} tar -cJf "$packageArchiveNative" --mtime='@0' --numeric-owner --group=0 --owner=0 "$(find "$package"/ -mindepth 1 -maxdepth 1)"
@@ -890,8 +875,7 @@ rm -rf "$package"
 
 if [ "$enableWin32" = "y" ] || [ "$enableWin64" = "y" ]; then
 
-buildMingw() {
-	(
+buildMingw() (
 	triplet="${1}"
 	flags="${2}"
 	buildFolder="${3}"
@@ -927,10 +911,10 @@ buildMingw() {
 	cp -R "$installNative"/share/gcc-* "$installFolder"/share/
 
 	(
-		echo "$bold********** $bannerPrefix$libiconv$normal"
+		msgA "$bannerPrefix$libiconv"
 		mkdir -p "$buildFolder/$libiconv"
 		cd "$buildFolder/$libiconv"
-		echo "$bold---------- $bannerPrefix$libiconv configure$normal"
+		msgB "$bannerPrefix$libiconv configure"
 		"$top/$sources/$libiconv"/configure \
 			"$quietConfigureOptions" \
 			--build="$hostTriplet" \
@@ -938,13 +922,13 @@ buildMingw() {
 			--prefix="$top/$buildFolder/$prerequisites/$libiconv" \
 			--disable-shared \
 			--disable-nls
-		echo "$bold---------- $bannerPrefix$libiconv make$normal"
+		msgB "$bannerPrefix$libiconv make"
 		make -j"$nproc"
-		echo "$bold---------- $bannerPrefix$libiconv make install$normal"
+		msgB "$bannerPrefix$libiconv make install"
 		make install
 		cd "$top"
 		if [ "$keepBuildFolders" = "n" ]; then
-			echo "$bold---------- $bannerPrefix$libiconv remove build folder$normal"
+			msgB "$bannerPrefix$libiconv remove build folder"
 			deleteDir "$top/$buildFolder/$libiconv"
 		fi
 	)
@@ -1055,14 +1039,13 @@ buildMingw() {
 	find "$installFolder" -name '*.dll' -exec "$STRIP" --strip-unneeded {} \;
 	sed -i 's/$/\r/' "$installFolder"/info.txt
 
-	echo "$bold********** ${bannerPrefix}Package$normal"
+	msgA "${bannerPrefix}Package"
 	rm -rf "$package"
 	ln -s "$installFolder" "$package"
 	rm -rf "$packageArchive"
 	7za a -l -mx=9 "$packageArchive" "$package"
 	rm -rf "$package"
-	)
-}
+)
 
 if [ "$enableWin32" = "y" ]; then
 	buildMingw \
@@ -1088,4 +1071,4 @@ fi
 
 fi	# if [ "${enableWin32}" = "y" ] || [ "${enableWin64}" = "y" ]; then
 
-echo "$bold********** Done$normal"
+msgA "Done"

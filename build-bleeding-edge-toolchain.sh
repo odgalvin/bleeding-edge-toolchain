@@ -139,7 +139,7 @@ BASE_CFLAGS_FOR_TARGET="-pipe -ffunction-sections -fdata-sections"
 BASE_CXXFLAGS_FOR_TARGET="-pipe -ffunction-sections -fdata-sections -fno-exceptions"
 
 deleteDir() {
-	[ -d "${0:?}" ] && rm -rf "${0:?}"
+	[ -d "${1:?}" ] && rm -rf "${1:?}"
 }
 
 msgA() {

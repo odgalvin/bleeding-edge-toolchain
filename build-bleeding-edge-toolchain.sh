@@ -139,7 +139,9 @@ BASE_CFLAGS_FOR_TARGET="-pipe -ffunction-sections -fdata-sections"
 BASE_CXXFLAGS_FOR_TARGET="-pipe -ffunction-sections -fdata-sections -fno-exceptions"
 
 deleteDir() {
-	[ -d "${1:?}" ] && rm -rf "${1:?}"
+	if [ -d "${1}" ]; then
+		rm -rf "${1:?}"
+	fi
 }
 
 msgA() {
@@ -660,18 +662,18 @@ postCleanup() (
 	find "$installFolder" -name '*.la' -exec rm -rf {} +
 	cat > "$installFolder"/info.txt <<- EOF
 	${pkgversion}
-	build date: $(date +'%Y-%m-%d')
-	build system: ${buildSystem}
-	host system: ${hostSystem}
+	build date:    $(date +'%Y-%m-%d')
+	build system:  ${buildSystem}
+	host system:   ${hostSystem}
 	target system: ${target}
-	compiler: ${CC-gcc} $(${CC-gcc} --version | grep -o '[0-9]\.[0-9]\.[0-9]')
+	compiler:      $(${CC-gcc} --version | head -n1)
 
 	Toolchain components:
 	- ${gcc}
 	- ${newlib}
 	- ${binutils}
 	- ${gdb}
-	$(printf "\- %s\n\- %s\n\- %s\n\- %s\n\- %s\n\- %s\n%s" "$expat" "$gmp" "$isl" "$mpc" "$mpfr" "$zlib" "$extraComponents" | sort)
+	$(printf -- "- %s\n- %s\n- %s\n- %s\n- %s\n- %s\n%s" "$expat" "$gmp" "$isl" "$mpc" "$mpfr" "$zlib" "$extraComponents" | sort)
 
 	This package and info about it can be found on Freddie Chopin's website:
 	http://www.freddiechopin.info/
@@ -867,9 +869,9 @@ rm -rf "$package"
 ln -s "$installNative" "$package"
 rm -rf "$packageArchiveNative"
 if [ "$uname" = "Darwin" ]; then
-	XZ_OPT=${XZ_OPT-"-9e -v"} tar -cJf "$packageArchiveNative" "$(find "$package"/ -mindepth 1 -maxdepth 1)"
+	XZ_OPT=${XZ_OPT-"-9e -v"} tar -cJf "$packageArchiveNative" "$package"/*
 else
-	XZ_OPT=${XZ_OPT-"-9e -v"} tar -cJf "$packageArchiveNative" --mtime='@0' --numeric-owner --group=0 --owner=0 "$(find "$package"/ -mindepth 1 -maxdepth 1)"
+	XZ_OPT=${XZ_OPT-"-9e -v"} tar -cJf "$packageArchiveNative" --mtime='@0' --numeric-owner --group=0 --owner=0 "$package"/*
 fi
 rm -rf "$package"
 

@@ -13,6 +13,10 @@ sudo: required
 # use minimal environment
 language: generic
 
+before_install:
+  - sudo apt-get update
+  - sudo apt-get install -y build-essential cmake ninja-build
+
 script:
     - "{ time=\"0\"; while true; do sleep 60; time=\"$((${time} + 1))\"; echo \"${time} minute(s)...\"; done } &"
     - "keepAlivePid=\"${!}\""

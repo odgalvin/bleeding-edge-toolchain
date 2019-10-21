@@ -20,6 +20,7 @@ script:
     - "kill \"${keepAlivePid}\""
     - "wait \"${keepAlivePid}\" || true"
     - "tar -xf *.tar.xz"
+    - "rm *.tar.xz"
     - "cd arm-none-eabi-gcc-*"
     - "export PATH=$(pwd)/bin:${PATH}"
     - "cd .."
@@ -27,7 +28,7 @@ script:
     - "curl -L -O https://github.com/DISTORTEC/distortos/archive/master.tar.gz"
     - "tar -xf master.tar.gz"
     - "cd distortos-master"
-    - "./scripts/buildAllConfigurations.sh"
+    - "./scripts/buildAllConfigurations.sh configurations"
 
 after_failure:
     - "echo \"********** /tmp/stdout.log\""

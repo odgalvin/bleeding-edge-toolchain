@@ -86,10 +86,12 @@ fi
 enableWin32="n"
 enableWin64="n"
 keepBuildFolders="n"
-skipNanoLibraries="n"
-buildDocumentation="y"
-quiet="n"
 resume="n"
+quiet="n"
+buildDocumentation="y"
+skipGdb="n"
+skipLibc="n"
+skipNanoLibraries="n"
 while [ ${#} -gt 0 ]; do
 	case ${1} in
 		--enable-win32)
@@ -104,17 +106,25 @@ while [ ${#} -gt 0 ]; do
 		--resume)
 			resume="y"
 			;;
+		--quiet)
+			quiet="y"
+			;;
 		--skip-documentation)
 			buildDocumentation="n"
+			;;
+		--skip-gdb)
+			skipGdb="y"
+			;;
+		--skip-libc)
+			skipLibc="y"
 			;;
 		--skip-nano-libraries)
 			skipNanoLibraries="y"
 			;;
-		--quiet)
-			quiet="y"
-			;;
 		*)
-			echo "Usage: $0 [--enable-win32] [--enable-win64] [--keep-build-folders] [--resume] [--skip-documentation] [--skip-nano-libraries] [--quiet]" >&2
+			printf "Usage: $0\n" >&2
+			printf "\t\t[--enable-win32] [--enable-win64] [--keep-build-folders] [--quiet] [--resume]\n" >&2
+			printf "\t\t[--skip-documentation] [--skip-gdb] [--skip-libc] [--skip-nano-libraries]\n" >&2
 			exit 1
 			;;
 	esac
@@ -408,6 +418,7 @@ buildGcc() (
 		eval "$top/$sources/$gcc/configure \
 			$quietConfigureOptions \
 			$configureOptions \
+			$libcConfigureOption \
 			--target=$target \
 			--prefix=$top/$installFolder \
 			--libexecdir=$top/$installFolder/lib \
@@ -516,7 +527,8 @@ buildGccFinal() (
 		export CXXFLAGS_FOR_TARGET="-g $optimization ${BASE_CXXFLAGS_FOR_TARGET-} ${CXXFLAGS_FOR_TARGET-}"
 		msgB "$gcc$suffix configure"
 		"$top/$sources/$gcc"/configure \
-			"$quietConfigureOptions" \
+			$quietConfigureOptions \
+			"$libcConfigureOption" \
 			--target="$target" \
 			--prefix="$top/$installFolder" \
 			--docdir="$top/$installFolder"/share/doc \
@@ -545,7 +557,7 @@ buildGccFinal() (
 			--with-mpfr="$top/$buildNative/$prerequisites/$mpfr" \
 			--with-mpc="$top/$buildNative/$prerequisites/$mpc" \
 			--with-isl="$top/$buildNative/$prerequisites/$isl" \
-			"--with-pkgversion=$pkgversion" \
+			--with-pkgversion="$pkgversion" \
 			--with-multilib-list=rmprofile
 		msgB "$gcc$suffix make"
 		make -j"$nproc" INHIBIT_LIBC_CFLAGS="-DUSE_TM_CLONE_REGISTRY=0"
@@ -742,7 +754,9 @@ if [ "${gccVersion#*-}" = "$gccVersion" ]; then
 else
 	download "$gccArchive" https://gcc.gnu.org/pub/gcc/snapshots/"$gccVersion/$gccArchive"
 fi
-download "$gdbArchive" "$gnumirror/gdb/$gdbArchive"
+if [ "$skipGdb" = "n" ]; then
+	download "$gdbArchive" "$gnumirror/gdb/$gdbArchive"
+fi
 download "$gmpArchive" "$gnumirror/gmp/$gmpArchive"
 download "$islArchive" http://isl.gforge.inria.fr/"$islArchive"
 if [ "$enableWin32" = "y" ] || [ "$enableWin64" = "y" ]; then
@@ -750,7 +764,9 @@ if [ "$enableWin32" = "y" ] || [ "$enableWin64" = "y" ]; then
 fi
 download "$mpcArchive" "$gnumirror/mpc/$mpcArchive"
 download "$mpfrArchive" "$gnumirror/mpfr/$mpfrArchive"
-download "$newlibArchive" https://sourceware.org/pub/newlib/"$newlibArchive"
+if [ "$skipLibc" = "n" ]; then
+	download "$newlibArchive" https://sourceware.org/pub/newlib/"$newlibArchive"
+fi
 if [ "$enableWin32" = "y" ]; then
 	download "$pythonArchiveWin32" https://www.python.org/ftp/python/"$pythonVersion/$pythonArchiveWin32"
 fi
@@ -772,7 +788,9 @@ extract() {
 extract "$binutilsArchive"
 extract "$expatArchive"
 extract "$gccArchive"
-extract "$gdbArchive"
+if [ "$skipGdb" = "n" ]; then
+	extract "$gdbArchive"
+fi
 extract "$gmpArchive"
 extract "$islArchive"
 if [ "$enableWin32" = "y" ] || [ "$enableWin64" = "y" ]; then
@@ -780,7 +798,9 @@ if [ "$enableWin32" = "y" ] || [ "$enableWin64" = "y" ]; then
 fi
 extract "$mpcArchive"
 extract "$mpfrArchive"
-extract "$newlibArchive"
+if [ "$skipLibc" = "n" ]; then
+	extract "$newlibArchive"
+fi
 if [ ! -f "${pythonArchiveWin32}_extracted" ] && [ "$enableWin32" = "y" ]; then
 	msgB "Extracting $pythonArchiveWin32"
 	7za x "$pythonArchiveWin32" -o"$pythonWin32"
@@ -794,7 +814,7 @@ fi
 extract "$zlibArchive"
 cd "$top"
 
-hostTriplet=$("$sources/$newlib"/config.guess)
+hostTriplet=$("$sources/$gcc"/config.guess)
 
 buildZlib "$buildNative" "" "" ""
 
@@ -812,7 +832,7 @@ buildBinutils "$buildNative" "$installNative" "" "--build=$hostTriplet --host=$h
 
 buildGcc "$buildNative" "$installNative" "" "--enable-languages=c --without-headers"
 
-if [ "$skipNanoLibraries" = "n" ]; then
+if [ "$skipNanoLibraries" = "n" ] && [ "$skipLibc" = "n" ]; then
 	(
 	export PATH="$top/$installNative/bin:${PATH-}"
 
@@ -833,24 +853,27 @@ if [ "$skipNanoLibraries" = "n" ]; then
 	fi
 fi
 
-buildNewlib \
-	"" \
-	"-O2" \
-	"--prefix=$top/$installNative \
-		--docdir=$top/$installNative/share/doc \
-		--enable-newlib-io-c99-formats \
-		--enable-newlib-io-long-long \
-		--disable-newlib-atexit-dynamic-alloc" \
-	"$documentationTypes"
+if [ "$skipLibc" = "n" ]; then
+	buildNewlib \
+		"" \
+		"-O2" \
+		"--prefix=$top/$installNative \
+			--docdir=$top/$installNative/share/doc \
+			--enable-newlib-io-c99-formats \
+			--enable-newlib-io-long-long \
+			--disable-newlib-atexit-dynamic-alloc" \
+		"$documentationTypes"
+	buildGccFinal "-final" "-O2" "$installNative" "$documentationTypes"
+fi
 
-buildGccFinal "-final" "-O2" "$installNative" "$documentationTypes"
-
-buildGdb \
-	"$buildNative" \
-	"$installNative" \
-	"" \
-	"--build=$hostTriplet --host=$hostTriplet --with-python=yes" \
-	"$documentationTypes"
+if [ "$skipGdb" = "n" ]; then
+	buildGdb \
+		"$buildNative" \
+		"$installNative" \
+		"" \
+		"--build=$hostTriplet --host=$hostTriplet --with-python=yes" \
+		"$documentationTypes"
+fi
 
 find "$installNative" -type f -exec chmod a+w {} +
 postCleanup "$installNative" "" "$hostSystem" ""
@@ -1005,28 +1028,30 @@ buildMingw() (
 	EOF
 	chmod +x "$buildFolder"/python.sh
 
-	buildGdb \
-		"$buildFolder" \
-		"$installFolder" \
-		"$bannerPrefix" \
-		"--build=$hostTriplet --host=$triplet \
-			--with-python=$top/$buildFolder/python.sh \
-			--program-prefix=$target- \
-			--program-suffix=-py \
-			--with-libiconv-prefix=$top/$buildFolder/$prerequisites/$libiconv" \
-		""
-	if [ "$keepBuildFolders" = "y" ]; then
-		mv "$buildFolder/$gdb" "$buildFolder/$gdb"-py
-	fi
+	if [ "$skipGdb" = "n" ]; then
+		buildGdb \
+			"$buildFolder" \
+			"$installFolder" \
+			"$bannerPrefix" \
+			"--build=$hostTriplet --host=$triplet \
+				--with-python=$top/$buildFolder/python.sh \
+				--program-prefix=$target- \
+				--program-suffix=-py \
+				--with-libiconv-prefix=$top/$buildFolder/$prerequisites/$libiconv" \
+			""
+		if [ "$keepBuildFolders" = "y" ]; then
+			mv "$buildFolder/$gdb" "$buildFolder/$gdb"-py
+		fi
 
-	buildGdb \
-		"$buildFolder" \
-		"$installFolder" \
-		"$bannerPrefix" \
-		"--build=$hostTriplet --host=$triplet \
-			--with-python=no \
-			--with-libiconv-prefix=$top/$buildFolder/$prerequisites/$libiconv" \
-		""
+		buildGdb \
+			"$buildFolder" \
+			"$installFolder" \
+			"$bannerPrefix" \
+			"--build=$hostTriplet --host=$triplet \
+				--with-python=no \
+				--with-libiconv-prefix=$top/$buildFolder/$prerequisites/$libiconv" \
+			""
+	fi
 
 	postCleanup "$installFolder" "$bannerPrefix" "$triplet" "- $libiconv\n- python-$pythonVersion\n"
 	deleteDir "$installFolder/lib/gcc/$target/$gccVersion"/plugin

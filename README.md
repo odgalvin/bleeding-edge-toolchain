@@ -13,7 +13,7 @@ Due to the fact that building a binary on "Linux distribution A" that would work
 (impossible?), there will be no binary packages for Linux. This script and some spare CPU time (~2 hours) is all you
 need.
 
-To build native toolchain for Linux just run the script with no arguments:
+To build a native toolchain for Linux just run the script with no arguments:
 
 `./build-bleeding-edge-toolchain.sh`
 
@@ -23,9 +23,9 @@ the tools listed below should be enough to successfully execute this script:
 - `m4`, which is required to execute `configure` scripts
 - `curl`, used to download the source tarballs of toolchain components
 - `tar`, used to extract source tarballs and to compress a compiled toolchain
-- `texinfo` and `texlive`, (optional) used to generate documentation
-- `python`, required by GDB, may be either version 2 or 3, but should contain headers and libraries, so you may need
-some kind of "development" and/or "library" package, depending on your system
+- `texinfo` and `texlive`, used to generate documentation (optional)
+- `python`, required by GDB (optional), may be either version 2 or 3, but should contain headers and libraries, so you
+may need some kind of "development" and/or "library" package, depending on your system
 
 The exact set of required packages will be different on each system, but on a fresh Ubuntu installation you are going
 to need just these packages: `curl`, `m4`, `python2.7-dev` and optionally: `texinfo` and `texlive`.
@@ -59,6 +59,10 @@ option is experimental and may not work reliably in all possible cases - if in d
 don't use it to perform a clean build
 - `--skip-documentation` will skip building html/pdf documentation in the subprojects, by default - if this option is
 not provided - the documentation is built, requiring texlive/texinfo
+- `--skip-gdb` will skip building GDB, by default - if this option is not provided - GDB is downloaded and built,
+requiring Python
+- `--skip-libc` will skip building a standard C library, by default - if this option is not provided - `newlib` is
+downloaded and built
 - `--skip-nano-libraries` will skip building of "nano" libraries, by default - if this option is not provided - "nano"
 libraries will be built, making the whole process take significantly longer
 - `--quiet` will make the build slightly less noisy

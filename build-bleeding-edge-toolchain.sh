@@ -122,7 +122,7 @@ while [ ${#} -gt 0 ]; do
 			skipNanoLibraries="y"
 			;;
 		*)
-			printf "Usage: $0\n" >&2
+			printf "Usage: %s\n" "$0" >&2
 			printf "\t\t[--enable-win32] [--enable-win64] [--keep-build-folders] [--quiet] [--resume]\n" >&2
 			printf "\t\t[--skip-documentation] [--skip-gdb] [--skip-libc] [--skip-nano-libraries]\n" >&2
 			exit 1
@@ -254,7 +254,6 @@ buildMpfr() (
 	fi
 )
 
-
 buildMpc() (
 	buildFolder="${1}"
 	bannerPrefix="${2}"
@@ -287,7 +286,6 @@ buildMpc() (
 		fi
 	fi
 )
-
 
 buildIsl() (
 	buildFolder="${1}"
@@ -520,12 +518,12 @@ buildGccFinal() (
 		export CFLAGS_FOR_TARGET="-g $optimization ${BASE_CFLAGS_FOR_TARGET-} ${CFLAGS_FOR_TARGET-}"
 		export CXXFLAGS_FOR_TARGET="-g $optimization ${BASE_CXXFLAGS_FOR_TARGET-} ${CXXFLAGS_FOR_TARGET-}"
 		msgB "$gcc$suffix configure"
-		"$top/$sources/$gcc"/configure \
+		eval "$top/$sources/$gcc/configure \
 			$quietConfigureOptions \
-			--target="$target" \
-			--prefix="$top/$installFolder" \
-			--docdir="$top/$installFolder"/share/doc \
-			--libexecdir="$top/$installFolder"/lib \
+			--target=$target \
+			--prefix=$top/$installFolder \
+			--docdir=$top/$installFolder/share/doc \
+			--libexecdir=$top/$installFolder/lib \
 			--enable-languages=c,c++ \
 			--disable-libstdcxx-verbose \
 			--enable-plugins \
@@ -544,14 +542,14 @@ buildGccFinal() (
 			--with-gnu-ld \
 			--with-newlib \
 			--with-headers=yes \
-			--with-sysroot="$top/$installFolder/$target" \
+			--with-sysroot=$top/$installFolder/$target \
 			--with-system-zlib \
-			--with-gmp="$top/$buildNative/$prerequisites/$gmp" \
-			--with-mpfr="$top/$buildNative/$prerequisites/$mpfr" \
-			--with-mpc="$top/$buildNative/$prerequisites/$mpc" \
-			--with-isl="$top/$buildNative/$prerequisites/$isl" \
-			--with-pkgversion="$pkgversion" \
-			--with-multilib-list=rmprofile
+			--with-gmp=$top/$buildNative/$prerequisites/$gmp \
+			--with-mpfr=$top/$buildNative/$prerequisites/$mpfr \
+			--with-mpc=$top/$buildNative/$prerequisites/$mpc \
+			--with-isl=$top/$buildNative/$prerequisites/$isl \
+			--with-pkgversion=$pkgversion \
+			--with-multilib-list=rmprofile"
 		msgB "$gcc$suffix make"
 		make -j"$nproc" INHIBIT_LIBC_CFLAGS="-DUSE_TM_CLONE_REGISTRY=0"
 		msgB "$gcc$suffix make install"
@@ -656,7 +654,6 @@ postCleanup() (
 	installFolder="${1}"
 	bannerPrefix="${2}"
 	hostSystem="${3}"
-	extraComponents="${4}"
 	if [ "$uname" = "Darwin" ]; then
 		buildSystem="$(uname -srvm)"
 	else
@@ -750,7 +747,7 @@ fi
 download "$gmpArchive" "$gnumirror/gmp/$gmpArchive"
 download "$islArchive" http://isl.gforge.inria.fr/"$islArchive"
 if [ "$enableWin32" = "y" ] || [ "$enableWin64" = "y" ]; then
-	download "$libiconvArchive" https://ftp.gnu.org/pub/gnu/libiconv/"$libiconvArchive"
+	download "$libiconvArchive" "$gnumirror/libiconv/$libiconvArchive"
 fi
 download "$mpcArchive" "$gnumirror/mpc/$mpcArchive"
 download "$mpfrArchive" "$gnumirror/mpfr/$mpfrArchive"
@@ -805,21 +802,13 @@ extract "$zlibArchive"
 cd "$top"
 
 hostTriplet=$("$sources/$gcc"/config.guess)
-
 buildZlib "$buildNative" "" "" ""
-
 buildGmp "$buildNative" "" "--build=$hostTriplet --host=$hostTriplet"
-
 buildMpfr "$buildNative" "" "--build=$hostTriplet --host=$hostTriplet"
-
 buildMpc "$buildNative" "" "--build=$hostTriplet --host=$hostTriplet"
-
 buildIsl "$buildNative" "" "--build=$hostTriplet --host=$hostTriplet"
-
 buildExpat "$buildNative" "" "--build=$hostTriplet --host=$hostTriplet"
-
 buildBinutils "$buildNative" "$installNative" "" "--build=$hostTriplet --host=$hostTriplet" "$documentationTypes"
-
 buildGcc "$buildNative" "$installNative" "" "--enable-languages=c --without-headers"
 
 if [ "$skipNanoLibraries" = "n" ] && [ "$skipLibc" = "n" ]; then
@@ -837,7 +826,6 @@ if [ "$skipNanoLibraries" = "n" ] && [ "$skipLibc" = "n" ]; then
 
 	buildGccFinal "-nano" "-Os" "$buildNative/$nanoLibraries" ""
 	)
-
 	if [ -d "$top/$buildNative/$nanoLibraries" ]; then
 		copyNanoLibraries "$top/$buildNative/$nanoLibraries" "$top/$installNative"
 	fi
@@ -866,7 +854,7 @@ if [ "$skipGdb" = "n" ]; then
 fi
 
 find "$installNative" -type f -exec chmod a+w {} +
-postCleanup "$installNative" "" "$hostSystem" ""
+postCleanup "$installNative" "" "$hostSystem"
 if [ "$uname" = "Darwin" ]; then
 	find "$installNative" -type f -perm +111 -exec strip -ur {} \; || true
 else
@@ -887,8 +875,6 @@ else
 	XZ_OPT=${XZ_OPT-"-9e -v"} tar -cJf "$packageArchiveNative" --mtime='@0' --numeric-owner --group=0 --owner=0 "$package"/*
 fi
 rm -rf "$package"
-
-if [ "$enableWin32" = "y" ] || [ "$enableWin64" = "y" ]; then
 
 buildMingw() (
 	triplet="${1}"
@@ -957,37 +943,12 @@ buildMingw() (
 			INCLUDE_PATH=\"$top/$buildFolder/$prerequisites/$zlib/include\" \
 			LIBRARY_PATH=\"$top/$buildFolder/$prerequisites/$zlib/lib\""
 
-	buildGmp \
-		"$buildFolder" \
-		"$bannerPrefix" \
-		"--build=$hostTriplet --host=$triplet"
-
-	buildMpfr \
-		"$buildFolder" \
-		"$bannerPrefix" \
-		"--build=$hostTriplet --host=$triplet"
-
-	buildMpc \
-		"$buildFolder" \
-		"$bannerPrefix" \
-		"--build=$hostTriplet --host=$triplet"
-
-	buildIsl \
-		"$buildFolder" \
-		"$bannerPrefix" \
-		"--build=$hostTriplet --host=$triplet"
-
-	buildExpat \
-		"$buildFolder" \
-		"$bannerPrefix" \
-		"--build=$hostTriplet --host=$triplet"
-
-	buildBinutils \
-		"$buildFolder" \
-		"$installFolder" \
-		"$bannerPrefix" \
-		"--build=$hostTriplet --host=$triplet" \
-		""
+	buildGmp "$buildFolder" "$bannerPrefix" "--build=$hostTriplet --host=$triplet"
+	buildMpfr "$buildFolder" "$bannerPrefix" "--build=$hostTriplet --host=$triplet"
+	buildMpc "$buildFolder" "$bannerPrefix" "--build=$hostTriplet --host=$triplet"
+	buildIsl "$buildFolder" "$bannerPrefix" "--build=$hostTriplet --host=$triplet"
+	buildExpat "$buildFolder" "$bannerPrefix" "--build=$hostTriplet --host=$triplet"
+	buildBinutils "$buildFolder" "$installFolder" "$bannerPrefix" "--build=$hostTriplet --host=$triplet" ""
 
 	buildGcc \
 		"$buildFolder" \
@@ -1043,12 +1004,12 @@ buildMingw() (
 			""
 	fi
 
-	postCleanup "$installFolder" "$bannerPrefix" "$triplet" "- $libiconv\n- python-$pythonVersion\n"
+	postCleanup "$installFolder" "$bannerPrefix" "$triplet"
 	deleteDir "$installFolder/lib/gcc/$target/$gccVersion"/plugin
 	deleteDir "$installFolder"/share/info
 	deleteDir "$installFolder"/share/man
 	find "$installFolder" -executable ! -type d ! -name '*.exe' ! -name '*.dll' ! -name '*.sh' -exec rm -f {} +
-	dlls="$(find "$installFolder"/ -name '*.exe' -exec "$triplet"-objdump -p {} \; | sed -ne "s/^.*DLL Name: \(.*\)$/\1/p" | sort | uniq)"
+	dlls="$(find "$installFolder"/ -name '*.exe' -exec "$triplet"-objdump -p {} \; | sed -ne "s/^.*DLL Name: \(.*\)$/\1/p" | sort -u)"
 	for dll in $dlls; do
 		cp /usr/"$triplet/bin/$dll" "$installFolder"/bin/ || true
 	done
@@ -1085,7 +1046,5 @@ if [ "$enableWin64" = "y" ]; then
 		"Win64: " \
 		"$packageArchiveWin64"
 fi
-
-fi	# if [ "${enableWin32}" = "y" ] || [ "${enableWin64}" = "y" ]; then
 
 msgA "Done"

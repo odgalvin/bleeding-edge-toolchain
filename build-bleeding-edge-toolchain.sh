@@ -208,8 +208,7 @@ buildGmp() (
 			$configureOptions \
 			--prefix=$top/$buildFolder/$prerequisites/$gmp \
 			--enable-cxx \
-			--disable-shared \
-			--disable-nls"
+			--disable-shared"
 		msgB "$bannerPrefix$gmp make"
 		make -j"$nproc"
 		msgB "$bannerPrefix$gmp make install"
@@ -241,7 +240,6 @@ buildMpfr() (
 			$configureOptions \
 			--prefix=$top/$buildFolder/$prerequisites/$mpfr \
 			--disable-shared \
-			--disable-nls \
 			--with-gmp=$top/$buildFolder/$prerequisites/$gmp"
 		msgB "$bannerPrefix$mpfr make"
 		make -j"$nproc"
@@ -275,7 +273,6 @@ buildMpc() (
 			$configureOptions \
 			--prefix=$top/$buildFolder/$prerequisites/$mpc \
 			--disable-shared \
-			--disable-nls \
 			--with-gmp=$top/$buildFolder/$prerequisites/$gmp \
 			--with-mpfr=$top/$buildFolder/$prerequisites/$mpfr"
 		msgB "$bannerPrefix$mpc make"
@@ -310,7 +307,6 @@ buildIsl() (
 			$configureOptions \
 			--prefix=$top/$buildFolder/$prerequisites/$isl \
 			--disable-shared \
-			--disable-nls \
 			--with-gmp-prefix=$top/$buildFolder/$prerequisites/$gmp"
 		msgB "$bannerPrefix$isl make"
 		make -j"$nproc"
@@ -342,8 +338,7 @@ buildExpat() (
 			$quietConfigureOptions \
 			$configureOptions \
 			--prefix=$top/$buildFolder/$prerequisites/$expat \
-			--disable-shared \
-			--disable-nls"
+			--disable-shared"
 		msgB "$bannerPrefix$expat make"
 		make -j"$nproc"
 		msgB "$bannerPrefix$expat make install"
@@ -418,7 +413,6 @@ buildGcc() (
 		eval "$top/$sources/$gcc/configure \
 			$quietConfigureOptions \
 			$configureOptions \
-			$libcConfigureOption \
 			--target=$target \
 			--prefix=$top/$installFolder \
 			--libexecdir=$top/$installFolder/lib \
@@ -528,7 +522,6 @@ buildGccFinal() (
 		msgB "$gcc$suffix configure"
 		"$top/$sources/$gcc"/configure \
 			$quietConfigureOptions \
-			"$libcConfigureOption" \
 			--target="$target" \
 			--prefix="$top/$installFolder" \
 			--docdir="$top/$installFolder"/share/doc \
@@ -672,6 +665,7 @@ postCleanup() (
 	msgA "${bannerPrefix}Post-cleanup"
 	deleteDir "$installFolder"/include
 	find "$installFolder" -name '*.la' -exec rm -rf {} +
+	toolList="$(find "$sources"/* -prune -type d -exec basename {} \; | sed "s/^/- /")"
 	cat > "$installFolder"/info.txt <<- EOF
 	${pkgversion}
 	build date:    $(date +'%Y-%m-%d')
@@ -681,11 +675,7 @@ postCleanup() (
 	compiler:      $(${CC-gcc} --version | head -n1)
 
 	Toolchain components:
-	- ${gcc}
-	- ${newlib}
-	- ${binutils}
-	- ${gdb}
-	$(printf -- "- %s\n- %s\n- %s\n- %s\n- %s\n- %s\n%s" "$expat" "$gmp" "$isl" "$mpc" "$mpfr" "$zlib" "$extraComponents" | sort)
+	$toolList
 
 	This package and info about it can be found on Freddie Chopin's website:
 	http://www.freddiechopin.info/
@@ -738,7 +728,7 @@ download() {
 	ret=0
 	if [ ! -f "${1}_downloaded" ]; then
 		msgB "Downloading ${1}"
-		curl -L -o "${1}" -C - --connect-timeout 30 -Y 1024 -y 30 "${2}" || ret=$?
+		curl -# -L -o "${1}" -C - --connect-timeout 30 -Y 1024 -y 30 "${2}" || ret=$?
 		if [ "$ret" -eq 33 ]; then
 			echo 'This happens if the file is complete, continuing...'
 		elif [ "$ret" -ne 0 ]; then
